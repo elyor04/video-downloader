@@ -64,11 +64,12 @@ class DownloadThread(QThread):
 
     def _get_format(self, download_type, video_quality):
         if download_type == "audio":
-            return "bestaudio[ext=m4a]/best"
+            return "bestaudio"
         elif video_quality == "highest":
-            return f"bestvideo[ext={self.video_format}]+bestaudio[ext=m4a]/best"
+            return f"bestvideo+bestaudio"
         else:
-            return f"{video_quality}[ext={self.video_format}]+bestaudio[ext=m4a]/best"
+            video_quality = re.search(r"\d+", video_quality).group()
+            return f"bestvideo[height<={video_quality}]+bestaudio"
 
     def _progress_hook(self, d):
         if self.is_canceled:
