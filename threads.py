@@ -57,8 +57,10 @@ class DownloadThread(QThread):
 
     def run(self):
         ydl_opts = {
-            "format": self._get_format(self.download_type, self.video_quality),
-            "outtmpl": os.path.join(self.output_path, f"{self.file_name}.%(ext)s"),
+            "format": self._get_format(),
+            "outtmpl": os.path.join(
+                self.output_path, f"{self.file_name} ({self.video_quality}).%(ext)s"
+            ),
             "progress_hooks": [self._progress_hook],
         }
 
@@ -88,12 +90,12 @@ class DownloadThread(QThread):
         except Exception as e:
             self.message.emit(f"An error occurred: {e}")
 
-    def _get_format(self, download_type, video_quality):
-        if download_type == "audio":
+    def _get_format(self):
+        if self.download_type == "audio":
             return "bestaudio"
         else:
-            video_quality = re.search(r"\d+", video_quality).group()
-            return f"bestvideo[height={video_quality}]+bestaudio"
+            quality = re.search(r"\d+", self.video_quality).group()
+            return f"bestvideo[height={quality}]+bestaudio"
 
     def _progress_hook(self, d):
         if self.is_canceled:
@@ -102,7 +104,7 @@ class DownloadThread(QThread):
         if d["status"] == "downloading":
             percent_str = d["_percent_str"]
             percent_clean = re.search(r"\d+\.\d+", percent_str).group()
-            self.progress.emit(round(float(percent_clean)))
+            self.progress.emit(int(float(percent_clean)))
         elif d["status"] == "finished":
             self.progress.emit(99)
 
