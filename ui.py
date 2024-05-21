@@ -187,9 +187,7 @@ class DownloaderApp(QWidget):
         ffmpeg_location = "/opt/homebrew/bin/ffmpeg"  # Update this path if necessary
 
         if video_quality == "":
-            QMessageBox.warning(
-                self, "Error", "Please fetch and select video quality first."
-            )
+            QMessageBox.warning(self, "Error", "Please fetch and select video quality.")
             return
         self.progress_bar.setValue(0)
 
