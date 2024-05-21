@@ -4,6 +4,31 @@ from PyQt6.QtCore import QThread, pyqtSignal
 import yt_dlp
 
 
+class FetchFormatsThread(QThread):
+    finished = pyqtSignal(list)
+    error = pyqtSignal(str)
+
+    def __init__(self, url):
+        super().__init__()
+        self.url = url
+
+    def run(self):
+        try:
+            with yt_dlp.YoutubeDL() as ydl:
+                info = ydl.extract_info(self.url, download=False)
+                formats = [
+                    format["height"]
+                    for format in info.get("formats", [])
+                    if format["video_ext"] != "none"
+                ]
+                formats = [
+                    f"{format}p" for format in sorted(set(formats), reverse=True)
+                ]
+                self.finished.emit(formats)
+        except Exception as e:
+            self.error.emit(str(e))
+
+
 class DownloadThread(QThread):
     progress = pyqtSignal(int)
     message = pyqtSignal(str)
@@ -65,11 +90,9 @@ class DownloadThread(QThread):
     def _get_format(self, download_type, video_quality):
         if download_type == "audio":
             return "bestaudio"
-        elif video_quality == "highest":
-            return f"bestvideo+bestaudio"
         else:
             video_quality = re.search(r"\d+", video_quality).group()
-            return f"bestvideo[height<={video_quality}]+bestaudio"
+            return f"bestvideo[height={video_quality}]+bestaudio"
 
     def _progress_hook(self, d):
         if self.is_canceled:

@@ -1,5 +1,4 @@
 from PyQt6.QtWidgets import (
-    QApplication,
     QWidget,
     QVBoxLayout,
     QHBoxLayout,
@@ -11,7 +10,7 @@ from PyQt6.QtWidgets import (
     QMessageBox,
     QProgressBar,
 )
-from threads import DownloadThread
+from threads import FetchFormatsThread, DownloadThread
 
 
 class DownloaderApp(QWidget):
@@ -30,11 +29,11 @@ class DownloaderApp(QWidget):
         url_label = QLabel("YouTube URL:", self)
         self.url_input = QLineEdit(self)
         self.url_input.setPlaceholderText("Enter YouTube URL here")
-        self.paste_button = QPushButton("Paste", self)
-        self.paste_button.clicked.connect(self.paste_url)
+        self.fetch_button = QPushButton("Fetch", self)
+        self.fetch_button.clicked.connect(self.fetch_formats)
         url_layout.addWidget(url_label)
         url_layout.addWidget(self.url_input)
-        url_layout.addWidget(self.paste_button)
+        url_layout.addWidget(self.fetch_button)
         layout.addLayout(url_layout)
 
         # File name input
@@ -60,9 +59,6 @@ class DownloaderApp(QWidget):
         quality_layout = QHBoxLayout()
         quality_label = QLabel("Video Quality:", self)
         self.quality_combo = QComboBox(self)
-        self.quality_combo.addItems(
-            ["highest", "1080p", "720p", "480p", "360p", "240p", "144p"]
-        )
         quality_layout.addWidget(quality_label)
         quality_layout.addWidget(self.quality_combo)
         layout.addLayout(quality_layout)
@@ -121,13 +117,28 @@ class DownloaderApp(QWidget):
 
         self.thread: DownloadThread = None
 
-    def paste_url(self):
-        clipboard = QApplication.clipboard()
-        self.url_input.setText(clipboard.text())
+    def fetch_formats(self):
+        url = self.url_input.text().strip()
+        if not url:
+            QMessageBox.warning(self, "Input Error", "Please enter a YouTube URL.")
+            return
+
+        self.quality_combo.clear()
+        self.fetch_thread = FetchFormatsThread(url)
+        self.fetch_thread.finished.connect(self.populate_formats)
+        self.fetch_thread.error.connect(self.show_error)
+        self.fetch_thread.start()
+
+    def populate_formats(self, formats):
+        self.quality_combo.addItems(formats)
+
+    def show_error(self, error):
+        QMessageBox.critical(self, "Error", error)
 
     def clear_fields(self):
         self.url_input.clear()
         self.file_name_input.clear()
+        self.quality_combo.clear()
         self.output_input.clear()
         self.progress_bar.setValue(0)
 
