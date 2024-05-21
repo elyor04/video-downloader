@@ -58,9 +58,7 @@ class DownloadThread(QThread):
     def run(self):
         ydl_opts = {
             "format": self._get_format(),
-            "outtmpl": os.path.join(
-                self.output_path, f"{self.file_name} ({self.video_quality}).%(ext)s"
-            ),
+            "outtmpl": self._get_outtmpl(),
             "progress_hooks": [self._progress_hook],
         }
 
@@ -93,9 +91,14 @@ class DownloadThread(QThread):
     def _get_format(self):
         if self.download_type == "audio":
             return "bestaudio"
-        else:
-            quality = re.search(r"\d+", self.video_quality).group()
-            return f"bestvideo[height={quality}]+bestaudio"
+        return f"bestvideo[height={self.video_quality[:-1]}]+bestaudio"
+
+    def _get_outtmpl(self):
+        if self.download_type == "audio":
+            return os.path.join(self.output_path, f"{self.file_name}.%(ext)s")
+        return os.path.join(
+            self.output_path, f"{self.file_name} ({self.video_quality}).%(ext)s"
+        )
 
     def _progress_hook(self, d):
         if self.is_canceled:
