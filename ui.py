@@ -169,17 +169,10 @@ class DownloaderApp(QWidget):
                 "%(title)s"  # Default to video title if no file name is provided
             )
 
-        if not self.quality_combo.currentText():
-            QMessageBox.warning(
-                self, "Error", "Please fetch and select video quality first."
-            )
-            return
-
         output_path = self.output_input.text().strip()
         if not output_path:
             QMessageBox.warning(self, "Input Error", "Please select an output path.")
             return
-        self.progress_bar.setValue(0)
 
         download_type = self.type_combo.currentText()
         video_quality = (
@@ -192,6 +185,13 @@ class DownloaderApp(QWidget):
             self.video_format_combo.currentText() if download_type == "video" else None
         )
         ffmpeg_location = "/opt/homebrew/bin/ffmpeg"  # Update this path if necessary
+
+        if video_quality == "":
+            QMessageBox.warning(
+                self, "Error", "Please fetch and select video quality first."
+            )
+            return
+        self.progress_bar.setValue(0)
 
         self.thread = DownloadThread(
             url,
