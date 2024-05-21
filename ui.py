@@ -133,7 +133,7 @@ class DownloaderApp(QWidget):
         self.quality_combo.addItems(formats)
 
     def show_error(self, error):
-        QMessageBox.critical(self, "Error", error)
+        QMessageBox.warning(self, "Error", error)
 
     def clear_fields(self):
         self.url_input.clear()
@@ -168,6 +168,12 @@ class DownloaderApp(QWidget):
             file_name = (
                 "%(title)s"  # Default to video title if no file name is provided
             )
+
+        if not self.quality_combo.currentText():
+            QMessageBox.warning(
+                self, "Error", "Please fetch and select video quality first."
+            )
+            return
 
         output_path = self.output_input.text().strip()
         if not output_path:
