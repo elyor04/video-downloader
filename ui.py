@@ -96,7 +96,6 @@ class DownloaderApp(QWidget):
 
         # Progress bar
         self.progress_bar = QProgressBar(self)
-        self.progress_bar.setValue(0)
         layout.addWidget(self.progress_bar)
 
         # Download and Cancel buttons
@@ -115,7 +114,7 @@ class DownloaderApp(QWidget):
         self.setLayout(layout)
         self.setStyleSheet(self.dark_mode_stylesheet())
 
-        self.thread: DownloadThread = None
+        self.download_thread: DownloadThread = None
 
     def fetch_formats(self):
         url = self.url_input.text().strip()
@@ -191,7 +190,7 @@ class DownloaderApp(QWidget):
             return
         self.progress_bar.setValue(0)
 
-        self.thread = DownloadThread(
+        self.download_thread = DownloadThread(
             url,
             download_type,
             video_quality,
@@ -201,9 +200,9 @@ class DownloaderApp(QWidget):
             video_format,
             ffmpeg_location,
         )
-        self.thread.progress.connect(self.update_progress)
-        self.thread.message.connect(self.show_message)
-        self.thread.start()
+        self.download_thread.progress.connect(self.update_progress)
+        self.download_thread.message.connect(self.show_message)
+        self.download_thread.start()
 
     def update_progress(self, value):
         self.progress_bar.setValue(value)
@@ -212,8 +211,8 @@ class DownloaderApp(QWidget):
         QMessageBox.information(self, "Download Status", message)
 
     def cancel_download(self):
-        if self.thread is not None:
-            self.thread.cancel_download()
+        if self.download_thread is not None:
+            self.download_thread.cancel_download()
 
     def dark_mode_stylesheet(self):
         return """

@@ -7,6 +7,6 @@ from ui import DownloaderApp
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    downloader_app = DownloaderApp()
-    downloader_app.show()
+    win = DownloaderApp()
+    win.show()
     sys.exit(app.exec())
