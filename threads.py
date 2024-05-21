@@ -57,28 +57,14 @@ class DownloadThread(QThread):
 
     def run(self):
         ydl_opts = {
-            "format": self._get_format(),
-            "outtmpl": self._get_outtmpl(),
+            "format": self._format(),
+            "outtmpl": self._outtmpl(),
+            "postprocessors": [self._postprocessors()],
             "progress_hooks": [self._progress_hook],
         }
 
         if self.ffmpeg_location:
             ydl_opts["ffmpeg_location"] = self.ffmpeg_location
-
-        if self.download_type == "audio":
-            ydl_opts["postprocessors"] = [
-                {
-                    "key": "FFmpegExtractAudio",
-                    "preferredcodec": self.audio_format,
-                }
-            ]
-        else:
-            ydl_opts["postprocessors"] = [
-                {
-                    "key": "FFmpegVideoConvertor",
-                    "preferedformat": self.video_format,
-                }
-            ]
 
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -88,17 +74,28 @@ class DownloadThread(QThread):
         except Exception as e:
             self.message.emit(f"An error occurred: {e}")
 
-    def _get_format(self):
+    def _format(self):
         if self.download_type == "audio":
             return "bestaudio"
         return f"bestvideo[height={self.video_quality[:-1]}]+bestaudio"
 
-    def _get_outtmpl(self):
+    def _outtmpl(self):
         if self.download_type == "audio":
             return os.path.join(self.output_path, f"{self.file_name}.%(ext)s")
         return os.path.join(
             self.output_path, f"{self.file_name} ({self.video_quality}).%(ext)s"
         )
+
+    def _postprocessors(self):
+        if self.download_type == "audio":
+            return {
+                "key": "FFmpegExtractAudio",
+                "preferredcodec": self.audio_format,
+            }
+        return {
+            "key": "FFmpegVideoConvertor",
+            "preferedformat": self.video_format,
+        }
 
     def _progress_hook(self, d):
         if self.is_canceled:
