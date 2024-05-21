@@ -59,7 +59,7 @@ class DownloadThread(QThread):
         ydl_opts = {
             "format": self._format(),
             "outtmpl": self._outtmpl(),
-            "postprocessors": [self._postprocessors()],
+            "postprocessors": [self._postprocessor()],
             "progress_hooks": [self._progress_hook],
         }
 
@@ -86,7 +86,7 @@ class DownloadThread(QThread):
             self.output_path, f"{self.file_name} ({self.video_quality}).%(ext)s"
         )
 
-    def _postprocessors(self):
+    def _postprocessor(self):
         if self.download_type == "audio":
             return {
                 "key": "FFmpegExtractAudio",
