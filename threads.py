@@ -83,6 +83,7 @@ class DownloadThread(QThread):
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 ydl.download([self.url])
+            self.progress.emit(100)
             self.message.emit("Download completed successfully.")
         except Exception as e:
             self.message.emit(f"An error occurred: {e}")
@@ -103,7 +104,7 @@ class DownloadThread(QThread):
             percent_clean = re.search(r"\d+\.\d+", percent_str).group()
             self.progress.emit(round(float(percent_clean)))
         elif d["status"] == "finished":
-            self.progress.emit(100)
+            self.progress.emit(99)
 
     def cancel_download(self):
         self.is_canceled = True
