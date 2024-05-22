@@ -19,16 +19,16 @@ class DownloaderApp(QWidget):
         self.initUI()
 
     def initUI(self):
-        self.setWindowTitle("YouTube Downloader")
+        self.setWindowTitle("Video Downloader")
         self.setGeometry(100, 100, 400, 500)
 
         layout = QVBoxLayout()
 
         # URL input
         url_layout = QHBoxLayout()
-        url_label = QLabel("YouTube URL:", self)
+        url_label = QLabel("Video URL:", self)
         self.url_input = QLineEdit(self)
-        self.url_input.setPlaceholderText("Enter YouTube URL here")
+        self.url_input.setPlaceholderText("Enter Video URL here")
         self.fetch_button = QPushButton("Fetch", self)
         self.fetch_button.clicked.connect(self.fetch_formats)
         url_layout.addWidget(url_label)
@@ -119,7 +119,7 @@ class DownloaderApp(QWidget):
     def fetch_formats(self):
         url = self.url_input.text().strip()
         if not url:
-            QMessageBox.warning(self, "Input Error", "Please enter a YouTube URL.")
+            QMessageBox.warning(self, "Input Error", "Please enter a Video URL.")
             return
 
         self.quality_combo.clear()
@@ -159,7 +159,7 @@ class DownloaderApp(QWidget):
     def download(self):
         url = self.url_input.text().strip()
         if not url:
-            QMessageBox.warning(self, "Input Error", "Please enter a YouTube URL.")
+            QMessageBox.warning(self, "Input Error", "Please enter a Video URL.")
             return
 
         file_name = self.file_name_input.text().strip()
