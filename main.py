@@ -1,5 +1,5 @@
 """
-pyinstaller main.py --onefile --windowed --name="YouTube Downloader" --icon="icon.png"
+pyinstaller main.py --onefile --windowed --name="Video Downloader" --icon="icon.png"
 """
 import sys
 from PyQt6.QtWidgets import QApplication
