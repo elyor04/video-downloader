@@ -45,9 +45,9 @@ class DownloaderApp(QWidget):
         type_layout.addWidget(self.type_combo)
         layout.addLayout(type_layout)
 
-        # Available format
+        # Desired format
         format_layout = QHBoxLayout()
-        format_label = QLabel("Available Format:", self)
+        format_label = QLabel("Desired Format:", self)
         self.format_combo = QComboBox(self)
         format_layout.addWidget(format_label)
         format_layout.addWidget(self.format_combo)
@@ -158,7 +158,7 @@ class DownloaderApp(QWidget):
 
         if desired_format == "":
             return QMessageBox.warning(
-                self, "Error", "Please fetch and select available format."
+                self, "Error", "Please fetch and select desired format."
             )
         self.progress_bar.setValue(0)
 
