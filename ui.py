@@ -36,51 +36,33 @@ class DownloaderApp(QWidget):
         url_layout.addWidget(self.fetch_button)
         layout.addLayout(url_layout)
 
-        # File name input
-        file_name_layout = QHBoxLayout()
-        file_name_label = QLabel("File Name:", self)
-        self.file_name_input = QLineEdit(self)
-        self.file_name_input.setPlaceholderText("(optional)")
-        file_name_layout.addWidget(file_name_label)
-        file_name_layout.addWidget(self.file_name_input)
-        layout.addLayout(file_name_layout)
-
         # Download type
         type_layout = QHBoxLayout()
         type_label = QLabel("Download Type:", self)
         self.type_combo = QComboBox(self)
         self.type_combo.addItems(["video", "audio"])
-        self.type_combo.currentIndexChanged.connect(self.download_type_changed)
         type_layout.addWidget(type_label)
         type_layout.addWidget(self.type_combo)
         layout.addLayout(type_layout)
 
-        # Video quality
-        quality_layout = QHBoxLayout()
-        quality_label = QLabel("Video Quality:", self)
-        self.quality_combo = QComboBox(self)
-        quality_layout.addWidget(quality_label)
-        quality_layout.addWidget(self.quality_combo)
-        layout.addLayout(quality_layout)
+        # Available format
+        format_layout = QHBoxLayout()
+        format_label = QLabel("Available Format:", self)
+        self.format_combo = QComboBox(self)
+        format_layout.addWidget(format_label)
+        format_layout.addWidget(self.format_combo)
+        layout.addLayout(format_layout)
 
-        # Video format
-        video_format_layout = QHBoxLayout()
-        video_format_label = QLabel("Video Format:", self)
-        self.video_format_combo = QComboBox(self)
-        self.video_format_combo.addItems(["mp4", "mkv", "webm", "flv"])
-        video_format_layout.addWidget(video_format_label)
-        video_format_layout.addWidget(self.video_format_combo)
-        layout.addLayout(video_format_layout)
-
-        # Audio format
-        audio_format_layout = QHBoxLayout()
-        audio_format_label = QLabel("Audio Format:", self)
-        self.audio_format_combo = QComboBox(self)
-        self.audio_format_combo.addItems(["mp3", "m4a", "wav", "aac", "flac"])
-        self.audio_format_combo.setEnabled(False)
-        audio_format_layout.addWidget(audio_format_label)
-        audio_format_layout.addWidget(self.audio_format_combo)
-        layout.addLayout(audio_format_layout)
+        # Convert to
+        convert_to_layout = QHBoxLayout()
+        convert_to_label = QLabel("Convert To:", self)
+        self.convert_to_combo = QComboBox(self)
+        self.convert_to_combo.addItems(
+            ["original", "mp4", "mkv", "webm", "mp3", "m4a", "wav"]
+        )
+        convert_to_layout.addWidget(convert_to_label)
+        convert_to_layout.addWidget(self.convert_to_combo)
+        layout.addLayout(convert_to_layout)
 
         # Output path
         output_layout = QHBoxLayout()
@@ -94,11 +76,21 @@ class DownloaderApp(QWidget):
         output_layout.addWidget(self.browse_button)
         layout.addLayout(output_layout)
 
+        # File name input
+        file_name_layout = QHBoxLayout()
+        file_name_label = QLabel("File Name:", self)
+        self.file_name_input = QLineEdit(self)
+        self.file_name_input.setPlaceholderText("(optional)")
+        file_name_layout.addWidget(file_name_label)
+        file_name_layout.addWidget(self.file_name_input)
+        layout.addLayout(file_name_layout)
+
         # Progress bar
         self.progress_bar = QProgressBar(self)
+        self.progress_bar.setValue(0)
         layout.addWidget(self.progress_bar)
 
-        # Download and Cancel buttons
+        # Download, Cancel, and Clear buttons
         button_layout = QHBoxLayout()
         self.download_button = QPushButton("Download", self)
         self.download_button.clicked.connect(self.download)
@@ -115,52 +107,37 @@ class DownloaderApp(QWidget):
         self.setStyleSheet(self.dark_mode_stylesheet())
 
         self.download_thread: DownloadThread = None
+        self.available_formats: dict = None
 
     def fetch_formats(self):
         url = self.url_input.text().strip()
         if not url:
-            QMessageBox.warning(self, "Input Error", "Please enter a Video URL.")
-            return
+            return QMessageBox.warning(self, "Error", "Please enter a Video URL.")
+        download_type = self.type_combo.currentText()
 
-        self.quality_combo.clear()
-        self.fetch_thread = FetchFormatsThread(url)
+        self.format_combo.clear()
+        self.fetch_thread = FetchFormatsThread(url, download_type)
         self.fetch_thread.finished.connect(self.populate_formats)
-        self.fetch_thread.error.connect(self.show_error)
+        self.fetch_thread.message.connect(self.show_message)
         self.fetch_thread.start()
 
     def populate_formats(self, formats):
-        self.quality_combo.addItems(formats)
+        self.available_formats = formats
+        download_type = self.type_combo.currentText()
+        self.format_combo.addItems(formats[download_type])
 
-    def show_error(self, error):
-        QMessageBox.warning(self, "Error", error)
-
-    def clear_fields(self):
-        self.url_input.clear()
-        self.file_name_input.clear()
-        self.quality_combo.clear()
-        self.output_input.clear()
-        self.progress_bar.setValue(0)
+    def show_message(self, message):
+        QMessageBox.information(self, None, message)
 
     def browse_output_path(self):
         directory = QFileDialog.getExistingDirectory(self, "Select Output Directory")
         if directory:
             self.output_input.setText(directory)
 
-    def download_type_changed(self):
-        if self.type_combo.currentText() == "audio":
-            self.quality_combo.setDisabled(True)
-            self.audio_format_combo.setEnabled(True)
-            self.video_format_combo.setDisabled(True)
-        else:
-            self.quality_combo.setDisabled(False)
-            self.audio_format_combo.setEnabled(False)
-            self.video_format_combo.setDisabled(False)
-
     def download(self):
         url = self.url_input.text().strip()
         if not url:
-            QMessageBox.warning(self, "Input Error", "Please enter a Video URL.")
-            return
+            return QMessageBox.warning(self, "Error", "Please enter a Video URL.")
 
         file_name = self.file_name_input.text().strip()
         if not file_name:
@@ -170,34 +147,29 @@ class DownloaderApp(QWidget):
 
         output_path = self.output_input.text().strip()
         if not output_path:
-            QMessageBox.warning(self, "Input Error", "Please select an output path.")
-            return
+            return QMessageBox.warning(self, "Error", "Please select an output path.")
 
         download_type = self.type_combo.currentText()
-        video_quality = (
-            self.quality_combo.currentText() if download_type == "video" else None
+        desired_format = self.format_combo.currentText()
+        convert_to = self.convert_to_combo.currentText()
+        ffmpeg_location = (
+            "/opt/homebrew/bin/ffmpeg"  # Update this path if you are not using MacOS
         )
-        audio_format = (
-            self.audio_format_combo.currentText() if download_type == "audio" else None
-        )
-        video_format = (
-            self.video_format_combo.currentText() if download_type == "video" else None
-        )
-        ffmpeg_location = "/opt/homebrew/bin/ffmpeg"  # Update this path if necessary
 
-        if video_quality == "":
-            QMessageBox.warning(self, "Error", "Please fetch and select video quality.")
-            return
+        if desired_format == "":
+            return QMessageBox.warning(
+                self, "Error", "Please fetch and select available format."
+            )
         self.progress_bar.setValue(0)
 
         self.download_thread = DownloadThread(
             url,
             download_type,
-            video_quality,
+            desired_format,
+            self.available_formats,
             output_path,
             file_name,
-            audio_format,
-            video_format,
+            convert_to,
             ffmpeg_location,
         )
         self.download_thread.progress.connect(self.update_progress)
@@ -207,12 +179,16 @@ class DownloaderApp(QWidget):
     def update_progress(self, value):
         self.progress_bar.setValue(value)
 
-    def show_message(self, message):
-        QMessageBox.information(self, "Download Status", message)
-
     def cancel_download(self):
         if self.download_thread is not None:
             self.download_thread.cancel_download()
+
+    def clear_fields(self):
+        self.url_input.clear()
+        self.file_name_input.clear()
+        self.format_combo.clear()
+        self.output_input.clear()
+        self.progress_bar.setValue(0)
 
     def dark_mode_stylesheet(self):
         return """

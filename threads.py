@@ -5,28 +5,38 @@ import yt_dlp
 
 
 class FetchFormatsThread(QThread):
-    finished = pyqtSignal(list)
-    error = pyqtSignal(str)
+    finished = pyqtSignal(dict)
+    message = pyqtSignal(str)
 
-    def __init__(self, url):
+    def __init__(self, url, download_type):
         super().__init__()
         self.url = url
+        self.download_type = download_type
 
     def run(self):
         try:
             with yt_dlp.YoutubeDL() as ydl:
                 info = ydl.extract_info(self.url, download=False)
-                formats = [
-                    format["height"]
-                    for format in info.get("formats", [])
-                    if format["video_ext"] != "none"
+                formats = {"video": [], "audio": []}
+
+                for f in info.get("formats", []):
+                    if f["audio_ext"] != "none":
+                        formats["audio"].append(f["ext"])
+                    elif f["video_ext"] != "none":
+                        formats["video"].append((f["height"], f["ext"]))
+
+                formats["audio"] = sorted(set(formats["audio"]), reverse=True)
+                formats["video"] = [
+                    f"{f[0]}p {f[1]}"
+                    for f in sorted(set(formats["video"]), reverse=True)
                 ]
-                formats = [
-                    f"{format}p" for format in sorted(set(formats), reverse=True)
-                ]
+
+                if not formats[self.download_type]:
+                    return self.message.emit("No format found.")
                 self.finished.emit(formats)
+
         except Exception as e:
-            self.error.emit(str(e))
+            self.message.emit(f"Error occurred: {e}")
 
 
 class DownloadThread(QThread):
@@ -37,21 +47,21 @@ class DownloadThread(QThread):
         self,
         url,
         download_type,
-        video_quality,
+        desired_format,
+        available_formats,
         output_path,
         file_name,
-        audio_format,
-        video_format,
+        convert_to,
         ffmpeg_location=None,
     ):
         super().__init__()
         self.url = url
         self.download_type = download_type
-        self.video_quality = video_quality
+        self.desired_format = desired_format
+        self.available_formats = available_formats
         self.output_path = output_path
         self.file_name = file_name
-        self.audio_format = audio_format
-        self.video_format = video_format
+        self.convert_to = convert_to
         self.ffmpeg_location = ffmpeg_location
         self.is_canceled = False
 
@@ -59,10 +69,11 @@ class DownloadThread(QThread):
         ydl_opts = {
             "format": self._format(),
             "outtmpl": self._outtmpl(),
-            "postprocessors": [self._postprocessor()],
             "progress_hooks": [self._progress_hook],
         }
 
+        if self.convert_to != "original":
+            ydl_opts["postprocessors"] = [self._postprocessor()]
         if self.ffmpeg_location:
             ydl_opts["ffmpeg_location"] = self.ffmpeg_location
 
@@ -72,29 +83,42 @@ class DownloadThread(QThread):
             self.progress.emit(100)
             self.message.emit("Download completed successfully.")
         except Exception as e:
-            self.message.emit(f"An error occurred: {e}")
+            self.message.emit(f"Error occurred: {e}")
 
     def _format(self):
         if self.download_type == "audio":
-            return "bestaudio"
-        return f"bestvideo[height={self.video_quality[:-1]}]+bestaudio"
+            return f"bestaudio[ext={self.desired_format}]"
+
+        q, f = self.desired_format.split()
+        if not self.available_formats["audio"]:
+            return f"best[height={q[:-1]}][ext={f}]"
+
+        if f in self.available_formats["audio"]:
+            audio = f
+        elif "m4a" in self.available_formats["audio"]:
+            audio = "m4a"
+        else:
+            audio = None
+
+        if not audio:
+            return f"bestvideo[height={q[:-1]}][ext={f}]+bestaudio"
+        return f"bestvideo[height={q[:-1]}][ext={f}]+bestaudio[ext={audio}]/best"
 
     def _outtmpl(self):
         if self.download_type == "audio":
             return os.path.join(self.output_path, f"{self.file_name}.%(ext)s")
-        return os.path.join(
-            self.output_path, f"{self.file_name} ({self.video_quality}).%(ext)s"
-        )
+        q, f = self.desired_format.split()
+        return os.path.join(self.output_path, f"{self.file_name} ({q}).%(ext)s")
 
     def _postprocessor(self):
         if self.download_type == "audio":
             return {
                 "key": "FFmpegExtractAudio",
-                "preferredcodec": self.audio_format,
+                "preferredcodec": self.convert_to,
             }
         return {
             "key": "FFmpegVideoConvertor",
-            "preferedformat": self.video_format,
+            "preferedformat": self.convert_to,
         }
 
     def _progress_hook(self, d):
