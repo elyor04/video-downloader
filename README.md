@@ -5,7 +5,7 @@ pip3 install yt-dlp PySide6
 ```
 
 ### Windows
-(Download FFmpeg)[https://ffmpeg.org/download.html]
+<a href="https://ffmpeg.org/download.html">Download FFmpeg</a>
 
 ### MacOS
 ```
