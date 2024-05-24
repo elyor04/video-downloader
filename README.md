@@ -6,14 +6,6 @@ pip install yt-dlp PySide6
 
 ### Windows
 ```
-choco install ffmpeg-full
-```
-or
-```
-scoop install ffmpeg
-```
-or
-```
 winget install ffmpeg
 ```
 
@@ -24,6 +16,5 @@ brew install ffmpeg
 
 ### Linux
 ```
-sudo apt update
 sudo apt install ffmpeg
 ```
