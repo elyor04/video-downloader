@@ -2,7 +2,7 @@
 pyinstaller main.py --onefile --windowed --name="Video Downloader" --icon="icon.png"
 """
 import sys
-from PyQt6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication
 from ui import DownloaderApp
 
 if __name__ == "__main__":

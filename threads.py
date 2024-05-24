@@ -1,12 +1,12 @@
 import os
 import re
-from PyQt6.QtCore import QThread, pyqtSignal
+from PySide6.QtCore import QThread, Signal
 import yt_dlp
 
 
 class FetchFormatsThread(QThread):
-    finished = pyqtSignal(dict)
-    message = pyqtSignal(str)
+    finished = Signal(dict)
+    message = Signal(str)
 
     def __init__(self, url, download_type):
         super().__init__()
@@ -40,8 +40,8 @@ class FetchFormatsThread(QThread):
 
 
 class DownloadThread(QThread):
-    progress = pyqtSignal(int)
-    message = pyqtSignal(str)
+    progress = Signal(int)
+    message = Signal(str)
 
     def __init__(
         self,
