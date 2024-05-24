@@ -1,5 +1,7 @@
 import os
 import re
+import sys
+import shutil
 from PySide6.QtCore import QThread, Signal
 import yt_dlp
 
@@ -52,7 +54,6 @@ class DownloadThread(QThread):
         output_path,
         file_name,
         convert_to,
-        ffmpeg_location=None,
     ):
         super().__init__()
         self.url = url
@@ -62,28 +63,52 @@ class DownloadThread(QThread):
         self.output_path = output_path
         self.file_name = file_name
         self.convert_to = convert_to
-        self.ffmpeg_location = ffmpeg_location
+        self.ffmpeg_location = None
         self.is_canceled = False
 
     def run(self):
+        if not self._ffmpeg_location():
+            return
+
         ydl_opts = {
             "format": self._format(),
             "outtmpl": self._outtmpl(),
+            "ffmpeg_location": self.ffmpeg_location,
             "progress_hooks": [self._progress_hook],
         }
 
         if self.convert_to != "original":
             ydl_opts["postprocessors"] = [self._postprocessor()]
-        if self.ffmpeg_location:
-            ydl_opts["ffmpeg_location"] = self.ffmpeg_location
 
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 ydl.download([self.url])
             self.progress.emit(100)
             self.message.emit("Download completed successfully.")
+
         except Exception as e:
             self.message.emit(f"Error occurred: {e}")
+
+    def _ffmpeg_location(self):
+        self.ffmpeg_location = shutil.which("ffmpeg")
+
+        if not self.ffmpeg_location:
+            if sys.platform == "win32":
+                instruction = " Please run this command `winget install ffmpeg`"
+
+            elif sys.platform == "darwin":
+                instruction = " Please run this command `brew install ffmpeg`"
+
+            elif sys.platform == "linux":
+                instruction = " Please run this command `sudo apt install ffmpeg`"
+
+            else:
+                instruction = ""
+
+            self.message.emit(f"Error: FFmpeg is not installed.{instruction}")
+            return False
+
+        return True
 
     def _format(self):
         if self.download_type == "audio":

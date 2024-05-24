@@ -141,9 +141,7 @@ class DownloaderApp(QWidget):
 
         file_name = self.file_name_input.text().strip()
         if not file_name:
-            file_name = (
-                "%(title)s"  # Default to video title if no file name is provided
-            )
+            file_name = "%(title)s"
 
         output_path = self.output_input.text().strip()
         if not output_path:
@@ -152,9 +150,6 @@ class DownloaderApp(QWidget):
         download_type = self.type_combo.currentText()
         desired_format = self.format_combo.currentText()
         convert_to = self.convert_to_combo.currentText()
-        ffmpeg_location = (
-            "/opt/homebrew/bin/ffmpeg"  # Update this path if you are not using MacOS
-        )
 
         if desired_format == "":
             return QMessageBox.warning(
@@ -170,7 +165,6 @@ class DownloaderApp(QWidget):
             output_path,
             file_name,
             convert_to,
-            ffmpeg_location,
         )
         self.download_thread.progress.connect(self.update_progress)
         self.download_thread.message.connect(self.show_message)
