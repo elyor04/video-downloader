@@ -4,15 +4,15 @@
 pip3 install yt-dlp PySide6
 ```
 
-###Windows
-https://ffmpeg.org/download.html
+### Windows
+(Download FFmpeg)[https://ffmpeg.org/download.html]
 
-###MacOS
+### MacOS
 ```
 brew install ffmpeg
 ```
 
-###Linux
+### Linux
 ```
 sudo apt update
 sudo apt install ffmpeg
