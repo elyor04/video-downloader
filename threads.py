@@ -66,6 +66,7 @@ class DownloadThread(QThread):
         self.is_canceled = False
 
     def run(self):
+        # ffmpeg_location = "/opt/homebrew/bin/ffmpeg"
         ffmpeg_location = self._ffmpeg_location()
         if not ffmpeg_location:
             return
