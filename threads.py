@@ -1,7 +1,7 @@
 import os
 import re
-import sys
 import shutil
+import platform
 from PySide6.QtCore import QThread, Signal
 import yt_dlp
 
@@ -63,18 +63,18 @@ class DownloadThread(QThread):
         self.output_path = output_path
         self.file_name = file_name
         self.convert_to = convert_to
-        self.ffmpeg_location = None
         self.is_canceled = False
 
     def run(self):
-        if not self._ffmpeg_location():
+        ffmpeg_location = self._ffmpeg_location()
+        if not ffmpeg_location:
             return
 
         ydl_opts = {
             "format": self._format(),
             "outtmpl": self._outtmpl(),
-            "ffmpeg_location": self.ffmpeg_location,
             "progress_hooks": [self._progress_hook],
+            "ffmpeg_location": ffmpeg_location,
         }
 
         if self.convert_to != "original":
@@ -90,25 +90,23 @@ class DownloadThread(QThread):
             self.message.emit(f"Error occurred: {e}")
 
     def _ffmpeg_location(self):
-        self.ffmpeg_location = shutil.which("ffmpeg")
+        ffmpeg_location = shutil.which("ffmpeg")
 
-        if not self.ffmpeg_location:
-            if sys.platform == "win32":
-                instruction = " Please run this command `winget install ffmpeg`"
+        if not ffmpeg_location:
+            system = platform.system()
+            message = "Error: FFmpeg is not installed. "
 
-            elif sys.platform == "darwin":
-                instruction = " Please run this command `brew install ffmpeg`"
-
-            elif sys.platform == "linux":
-                instruction = " Please run this command `sudo apt install ffmpeg`"
-
+            if system == "Windows":
+                message += "Please run this command: winget install ffmpeg"
+            elif system == "Darwin":
+                message += "Please run this command: brew install ffmpeg"
+            elif system == "Linux":
+                message += "Please run this command: sudo apt install ffmpeg"
             else:
-                instruction = ""
+                message += "Please refer to this link: https://ffmpeg.org/download.html"
 
-            self.message.emit(f"Error: FFmpeg is not installed.{instruction}")
-            return False
-
-        return True
+            self.message.emit(message)
+        return ffmpeg_location
 
     def _format(self):
         if self.download_type == "audio":
