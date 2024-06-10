@@ -22,3 +22,7 @@ brew install ffmpeg
 ```
 sudo apt install ffmpeg
 ```
+
+## Usage
+`python main.py` - Windows
+`python3 main.py` - MacOS, Linux
