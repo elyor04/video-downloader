@@ -24,5 +24,5 @@ sudo apt install ffmpeg
 ```
 
 ## Usage
-`python main.py` - Windows\
+`python main.py` - Windows <br>
 `python3 main.py` - MacOS, Linux
