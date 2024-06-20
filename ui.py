@@ -47,9 +47,9 @@ class DownloaderApp(QWidget):
         type_layout.addWidget(self.type_combo)
         layout.addLayout(type_layout)
 
-        # Video format
+        # Desired format
         format_layout = QHBoxLayout()
-        format_label = QLabel("Video Format:", self)
+        format_label = QLabel("Desired Format:", self)
         self.format_combo = QComboBox(self)
         format_layout.addWidget(format_label)
         format_layout.addWidget(self.format_combo)
@@ -150,19 +150,19 @@ class DownloaderApp(QWidget):
             return QMessageBox.warning(self, "Error", "Please select an output path.")
 
         download_type = self.type_combo.currentText()
-        video_format = self.format_combo.currentText()
+        desired_format = self.format_combo.currentText()
         convert_to = self.convert_to_combo.currentText()
 
-        if video_format == "":
+        if desired_format == "":
             return QMessageBox.warning(
-                self, "Error", "Please fetch and select video format."
+                self, "Error", "Please fetch and select desired format."
             )
         self.progress_bar.setValue(0)
 
         self.download_thread = DownloadThread(
             url,
             download_type,
-            video_format,
+            desired_format,
             self.available_formats,
             output_path,
             file_name,

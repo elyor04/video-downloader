@@ -49,7 +49,7 @@ class DownloadThread(QThread):
         self,
         url,
         download_type,
-        video_format,
+        desired_format,
         available_formats,
         output_path,
         file_name,
@@ -58,7 +58,7 @@ class DownloadThread(QThread):
         super().__init__()
         self.url = url
         self.download_type = download_type
-        self.video_format = video_format
+        self.desired_format = desired_format
         self.available_formats = available_formats
         self.output_path = output_path
         self.file_name = file_name
@@ -111,9 +111,9 @@ class DownloadThread(QThread):
 
     def _format(self):
         if self.download_type == "audio":
-            return f"bestaudio[ext={self.video_format}]"
+            return f"bestaudio[ext={self.desired_format}]"
 
-        q, f = self.video_format.split()
+        q, f = self.desired_format.split()
         if not self.available_formats["audio"]:
             return f"best[height={q[:-1]}][ext={f}]"
 
@@ -131,7 +131,7 @@ class DownloadThread(QThread):
     def _outtmpl(self):
         if self.download_type == "audio":
             return os.path.join(self.output_path, f"{self.file_name}.%(ext)s")
-        q, f = self.video_format.split()
+        q, f = self.desired_format.split()
         return os.path.join(self.output_path, f"{self.file_name} ({q}).%(ext)s")
 
     def _postprocessor(self):
