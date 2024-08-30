@@ -11,7 +11,7 @@ from PySide6.QtWidgets import (
     QProgressBar,
 )
 from PySide6.QtGui import QIcon
-from threads import FetchFormatsThread, DownloadThread
+from .threads import FetchFormatsThread, DownloadThread
 
 
 class DownloaderApp(QWidget):
@@ -22,7 +22,7 @@ class DownloaderApp(QWidget):
     def initUI(self):
         self.setWindowTitle("Video Downloader")
         self.setGeometry(100, 100, 400, 500)
-        self.setWindowIcon(QIcon("icon.png"))
+        self.setWindowIcon(QIcon("./DownloaderApp/resources/icon.png"))
 
         layout = QVBoxLayout()
 
