@@ -1,29 +1,31 @@
 # Video Downloader
-Download videos and audios from YouTube, Instagram, TikTok, and other sites.
 
-<img width="512" alt="Screenshot 2024-06-20 at 18 04 23" src="https://github.com/elyor04/video-downloader/assets/91869056/b7a1b1e3-c6c6-42c8-9ce7-ef8156d52a43">
+Download videos and audio from YouTube, Instagram, TikTok, and other sites — with a queue for multiple downloads at once, resolution and format selection, and a modern QML interface.
+
+## Features
+
+- Paste a URL and it's automatically previewed (title and thumbnail) before you add it — no separate "Fetch" step; the Download button enables once the preview succeeds, and any failure (bad link, network issue, site blocking the request) shows up as a clear error dialog
+- Add several URLs and download up to 2 at a time; the rest wait in a queue and start automatically
+- Video or audio mode, resolution selection (narrowed to what's actually available once a video is previewed), optional format conversion (mp4/mkv/webm/mp3/m4a/wav)
+- Playlist detection with a confirmation prompt before downloading an entire playlist
+- Sign-in / video-password support for gated content
+- Each download runs in its own isolated background process, so a failure in one never affects the app or other downloads, and cancelling is immediate
+- Interface available in English, Russian, and Uzbek (switchable at any time, top-right)
 
 ## Installation
 
 ```
-pip install yt-dlp PySide6
+pip install -r requirements.txt
 ```
 
-### Windows
-```
-winget install ffmpeg
-```
+### FFmpeg (required for merging/converting)
 
-### MacOS
-```
-brew install ffmpeg
-```
-
-### Linux
-```
-sudo apt install ffmpeg
-```
+- **Windows**: `winget install ffmpeg`
+- **macOS**: `brew install ffmpeg`
+- **Linux**: `sudo apt install ffmpeg`
 
 ## Usage
-`python main.py` - Windows <br>
-`python3 main.py` - MacOS, Linux
+
+```
+python main.py
+```
