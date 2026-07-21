@@ -28,11 +28,11 @@ Frame {
         }
         function onModeChanged() {
             convertCombo.currentIndex = 0
-            backend.setConvertToIndex(0)
+            backend.resetConvertToOriginal()
         }
         function onResolutionOptionsChanged() {
             resolutionCombo.currentIndex = 0
-            backend.setResolutionIndex(0)
+            backend.resetResolutionToBest()
         }
     }
 
@@ -124,15 +124,19 @@ Frame {
                 id: resolutionCombo
                 visible: backend.mode === "video"
                 Layout.preferredWidth: 160
-                model: backend.resolutionLabels
-                onActivated: backend.setResolutionIndex(currentIndex)
+                model: backend.resolutionModel
+                textRole: "text"
+                valueRole: "value"
+                onActivated: backend.setResolution(currentValue)
             }
 
             ComboBox {
                 id: convertCombo
                 Layout.preferredWidth: 140
-                model: backend.convertOptions
-                onActivated: backend.setConvertToIndex(currentIndex)
+                model: backend.convertModel
+                textRole: "text"
+                valueRole: "value"
+                onActivated: backend.setConvertTo(currentValue)
             }
 
             TextField {

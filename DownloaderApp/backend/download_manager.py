@@ -1,4 +1,5 @@
 import queue as _queue
+import traceback
 from multiprocessing import Event as MpEvent
 from multiprocessing import Process, Queue
 from pathlib import Path
@@ -109,30 +110,50 @@ class DownloadManager(QObject):
         return filtered or utils.RESOLUTION_LADDER
 
     @Property(list, notify=resolutionOptionsChanged)
-    def resolutionLabels(self):
-        # Labels are display-only (translated); the selected *value* travels
-        # via index, never via text, so a translated label can never leak
-        # into ydl_opts as if it were "original"/a real resolution.
-        return [self.tr(label) for _, label in self._effective_resolution_ladder()]
+    def resolutionModel(self):
+        # Each entry carries its resolution value alongside its translated
+        # label. QML reads the value straight off the selected entry (via
+        # ComboBox.valueRole/currentValue) instead of an index that would
+        # have to be re-resolved against whatever ladder is current by the
+        # time the slot runs -- so a selection can never end up paired with
+        # the wrong entry if the ladder is rebuilt in between.
+        return [
+            {"text": self.tr(label), "value": value}
+            for value, label in self._effective_resolution_ladder()
+        ]
 
     @Slot(int)
-    def setResolutionIndex(self, index):
-        ladder = self._effective_resolution_ladder()
-        if 0 <= index < len(ladder):
-            self._resolution = ladder[index][0]
+    def setResolution(self, value):
+        if any(value == entry[0] for entry in utils.RESOLUTION_LADDER):
+            self._resolution = value
+
+    @Slot()
+    def resetResolutionToBest(self):
+        self._resolution = utils.MAX_RESOLUTION
 
     def _convert_option_values(self):
         return utils.AUDIO_CONVERT_OPTIONS if self._mode == "audio" else utils.VIDEO_CONVERT_OPTIONS
 
     @Property(list, notify=optionsChanged)
-    def convertOptions(self):
-        return [self.tr(o) if o == "original" else o for o in self._convert_option_values()]
+    def convertModel(self):
+        # Same value-keyed pattern as resolutionModel -- see its docstring.
+        return [
+            {"text": self.tr(o) if o == "original" else o, "value": o}
+            for o in self._convert_option_values()
+        ]
 
-    @Slot(int)
-    def setConvertToIndex(self, index):
-        values = self._convert_option_values()
-        if 0 <= index < len(values):
-            self._convert_to = values[index]
+    @Slot(str)
+    def setConvertTo(self, value):
+        # Validated against the *current* mode's options, not a fixed
+        # global set: unlike resolution, video vs audio convert targets are
+        # genuinely different domains -- accepting "mp3" while in video
+        # mode would build a nonsensical ffmpeg postprocessor request.
+        if value in self._convert_option_values():
+            self._convert_to = value
+
+    @Slot()
+    def resetConvertToOriginal(self):
+        self._convert_to = "original"
 
     @Property(str, notify=outputDirChanged)
     def outputDir(self):
@@ -358,13 +379,25 @@ class DownloadManager(QObject):
     # -- Poll loop: drains worker events, then schedules queued jobs --
 
     def _on_poll(self):
+        # An unhandled exception escaping a slot invoked from Qt's C++ event
+        # loop (rather than from ordinary Python code) risks aborting the
+        # whole app instead of just the job being processed -- defeating the
+        # per-job isolation the worker-process design is meant to provide.
+        # Guard each job independently so one bad event can't take down the
+        # others still in flight.
         if self._preview_event_queue is not None:
-            self._drain_preview()
+            self._guarded(self._drain_preview)
         for job in list(self._fetching.values()):
-            self._drain(job, is_fetch=True)
+            self._guarded(self._drain, job, is_fetch=True)
         for job in list(self._active.values()):
-            self._drain(job, is_fetch=False)
+            self._guarded(self._drain, job, is_fetch=False)
         self._schedule_next()
+
+    def _guarded(self, fn, *args, **kwargs):
+        try:
+            fn(*args, **kwargs)
+        except Exception:
+            traceback.print_exc()
 
     def _drain(self, job, is_fetch):
         finished_process = False
@@ -543,7 +576,12 @@ class DownloadManager(QObject):
     @Slot(str, str, str)
     def submitLogin(self, job_id, username, password):
         job = self._queue_model.job_by_id(job_id)
-        if job is not None and job.cmd_queue is not None:
+        # Guard against a stale/duplicate submit (e.g. a rapid double-click
+        # on the dialog button before it closes) re-entering here after the
+        # job has already left "awaiting_login" -- without this, a second
+        # call would try an invalid "downloading" -> "downloading"
+        # transition and hit the assertion in job.set_state.
+        if job is not None and job.state == "awaiting_login" and job.cmd_queue is not None:
             job.cmd_queue.put(("login", (username, password)))
             self._transition(job, "downloading")
         self._clear_current_prompt(job_id)
@@ -551,7 +589,7 @@ class DownloadManager(QObject):
     @Slot(str, str)
     def submitPassword(self, job_id, password):
         job = self._queue_model.job_by_id(job_id)
-        if job is not None and job.cmd_queue is not None:
+        if job is not None and job.state == "awaiting_password" and job.cmd_queue is not None:
             job.cmd_queue.put(("password", password))
             self._transition(job, "downloading")
         self._clear_current_prompt(job_id)
@@ -559,7 +597,7 @@ class DownloadManager(QObject):
     @Slot(str)
     def skipAuthentication(self, job_id):
         job = self._queue_model.job_by_id(job_id)
-        if job is not None and job.cmd_queue is not None:
+        if job is not None and job.cmd_queue is not None and job.state in ("awaiting_login", "awaiting_password"):
             kind = "login" if job.state == "awaiting_login" else "password"
             job.cmd_queue.put((kind, None))
             self._transition(job, "downloading")
@@ -589,7 +627,10 @@ class DownloadManager(QObject):
             return
         is_fetch = job.id in self._fetching
         if job.process is not None and job.process.is_alive():
-            job.process.terminate()
+            # Only reached for download jobs (scheduled from the
+            # cancel_event branch of cancelJob), which own their process
+            # group -- safe to take ffmpeg down with them.
+            utils.terminate_process_tree(job.process)
         self._finalize_process(job, is_fetch)
         self._transition(job, "cancelled")
 
@@ -642,6 +683,12 @@ class DownloadManager(QObject):
                 continue
             job.process.join(timeout=1.5)
             if job.process.is_alive():
-                job.process.terminate()
+                # Download jobs own their process group (see worker_process
+                # .run_download); fetch jobs don't spawn ffmpeg and share the
+                # app's group, so they must only ever get a plain terminate.
+                if job.cancel_event is not None:
+                    utils.terminate_process_tree(job.process)
+                else:
+                    job.process.terminate()
                 job.process.join(timeout=1)
         self.shutdownReady.emit()

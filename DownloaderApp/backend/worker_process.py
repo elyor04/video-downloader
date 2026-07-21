@@ -106,6 +106,17 @@ def run_fetch(cmd_queue, event_queue, url):
 
 
 def run_download(cmd_queue, event_queue, cancel_event, params):
+    # Become the leader of our own process group so ffmpeg (spawned by
+    # yt-dlp's postprocessors) can be killed as a unit via
+    # utils.terminate_process_tree -- otherwise cancelling mid-conversion
+    # kills only this worker and leaves ffmpeg running orphaned. No-op on
+    # Windows, which has no os.setsid; termination there uses `taskkill /T`.
+    if hasattr(os, "setsid"):
+        try:
+            os.setsid()
+        except OSError:
+            pass
+
     ffmpeg_loc = utils.ffmpeg_location()
     if not ffmpeg_loc:
         event_queue.put(("error", utils.ffmpeg_missing_message()))

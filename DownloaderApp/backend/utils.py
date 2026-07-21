@@ -1,6 +1,7 @@
 import os
 import platform
 import shutil
+import signal
 import subprocess
 import sys
 from pathlib import Path
@@ -53,6 +54,36 @@ def ffmpeg_missing_message() -> str:
     return message
 
 
+def terminate_process_tree(process) -> None:
+    """Terminate a worker process along with any subprocess it spawned
+    (ffmpeg, via yt-dlp's postprocessors).
+
+    Workers that spawn ffmpeg call os.setsid() as their first action, making
+    them the leader of their own process group; killing that whole group
+    reaches ffmpeg too. process.terminate() alone only signals the worker,
+    leaving ffmpeg orphaned and still writing the output file after the
+    "cancelled" job has already been reported to the UI.
+    """
+    pid = process.pid
+    if pid is None:
+        return
+    if sys.platform == "win32":
+        subprocess.run(
+            ["taskkill", "/F", "/T", "/PID", str(pid)],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        return
+    try:
+        pgid = os.getpgid(pid)
+        if pgid != os.getpgrp():
+            os.killpg(pgid, signal.SIGTERM)
+            return
+    except (ProcessLookupError, PermissionError, OSError):
+        pass
+    process.terminate()
+
+
 def open_in_file_manager(path: str) -> None:
     if sys.platform == "win32":
         os.startfile(path)  # type: ignore[attr-defined]
@@ -98,7 +129,7 @@ def check_download_dir(path: str, create: bool = False) -> Optional[str]:
         except FileExistsError:
             return "Not a directory"
         except OSError:
-            return "Permission denied"
+            return "Could not create directory"
     elif not os.path.isdir(path):
         return "Not a directory"
     if not os.access(path, os.R_OK | os.W_OK | os.X_OK):
