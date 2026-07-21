@@ -1,4 +1,5 @@
 import os
+import signal
 import subprocess
 import sys
 from multiprocessing import Process
@@ -123,6 +124,10 @@ def test_check_download_dir_parent_is_a_file_reports_could_not_create_windows(tm
 def _spawn_child_process(ready_queue):
     if hasattr(os, "setsid"):
         os.setsid()
+    # Ignoring SIGTERM here means this test only passes if the group kill
+    # actually uses SIGKILL -- a regression back to SIGTERM would leave this
+    # process (though not a plain `sleep` child) alive.
+    signal.signal(signal.SIGTERM, signal.SIG_IGN)
     child = subprocess.Popen(["sleep", "30"])
     ready_queue.put(child.pid)
     child.wait()

@@ -63,6 +63,12 @@ def terminate_process_tree(process) -> None:
     reaches ffmpeg too. process.terminate() alone only signals the worker,
     leaving ffmpeg orphaned and still writing the output file after the
     "cancelled" job has already been reported to the UI.
+
+    Always a hard kill (SIGKILL / taskkill /F) on both platforms -- no
+    graceful step first, since Windows has no reliable equivalent (a
+    --windowed build has no console to send CTRL_BREAK_EVENT from) and this
+    runs on the Qt main thread, where waiting on a soft-kill would freeze
+    the UI.
     """
     pid = process.pid
     if pid is None:
@@ -77,11 +83,11 @@ def terminate_process_tree(process) -> None:
     try:
         pgid = os.getpgid(pid)
         if pgid != os.getpgrp():
-            os.killpg(pgid, signal.SIGTERM)
+            os.killpg(pgid, signal.SIGKILL)
             return
-    except (ProcessLookupError, PermissionError, OSError):
+    except OSError:
         pass
-    process.terminate()
+    process.kill()
 
 
 def open_in_file_manager(path: str) -> None:
