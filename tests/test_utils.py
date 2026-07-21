@@ -96,6 +96,22 @@ def test_check_download_dir_unwritable_parent_reports_could_not_create(tmp_path)
         parent.chmod(0o700)  # restore so tmp_path cleanup can remove it
 
 
+@pytest.mark.skipif(
+    sys.platform != "win32",
+    reason="exercises the FileNotFoundError path os.makedirs takes on Windows "
+    "when a parent component is a file; POSIX raises NotADirectoryError instead "
+    "but check_download_dir handles both the same way (any OSError)",
+)
+def test_check_download_dir_parent_is_a_file_reports_could_not_create_windows(tmp_path):
+    parent_as_file = tmp_path / "not-a-dir"
+    parent_as_file.write_text("x")
+    target = parent_as_file / "child"
+    assert (
+        utils.check_download_dir(str(target), create=True)
+        == "Could not create directory"
+    )
+
+
 # -- terminate_process_tree --
 # Regression coverage for the orphaned-ffmpeg bug: cancelling a download
 # used to kill only the worker process, leaving any subprocess it spawned
@@ -142,6 +158,47 @@ def test_terminate_process_tree_kills_worker_and_its_child():
 
         assert not proc.is_alive()
         assert not _pid_alive(child_pid)
+    finally:
+        if proc.is_alive():
+            proc.terminate()
+            proc.join(timeout=1)
+
+
+def _spawn_child_process_windows(ready_queue):
+    child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(30)"])
+    ready_queue.put(child.pid)
+    child.wait()
+
+
+def _pid_alive_windows(pid):
+    # os.kill(pid, 0) doesn't reliably report exit status on Windows, so shell
+    # out to tasklist and check whether the PID still shows up.
+    result = subprocess.run(
+        ["tasklist", "/FI", f"PID eq {pid}"], capture_output=True, text=True
+    )
+    return str(pid) in result.stdout
+
+
+@pytest.mark.skipif(
+    sys.platform != "win32",
+    reason="Windows-only taskkill /T process-tree mechanism",
+)
+def test_terminate_process_tree_kills_worker_and_its_child_windows():
+    ready_queue = MPQueue()
+    proc = Process(
+        target=_spawn_child_process_windows, args=(ready_queue,), daemon=True
+    )
+    proc.start()
+    try:
+        child_pid = ready_queue.get(timeout=5)
+        assert proc.is_alive()
+        assert _pid_alive_windows(child_pid)
+
+        utils.terminate_process_tree(proc)
+        proc.join(timeout=5)
+
+        assert not proc.is_alive()
+        assert not _pid_alive_windows(child_pid)
     finally:
         if proc.is_alive():
             proc.terminate()
